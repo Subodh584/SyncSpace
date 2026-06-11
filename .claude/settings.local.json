@@ -20,7 +20,11 @@
       "Bash(curl -sSfL https://get.tur.so/install.sh)",
       "Bash(bash)",
       "Bash(/home/subodhchauhan/.turso/turso *)",
-      "Bash(TURSO_DATABASE_URL=\"libsql://syncspace-subodh584.aws-ap-south-1.turso.io\" TURSO_AUTH_TOKEN=\"eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODEyMDM0MTUsImlkIjoiMDE5ZWI3ZmYtMWQwMS03ZTZkLWJkMDgtN2NlNWIyMGUzZDEwIiwicmlkIjoiMmRmMWM3MmUtMmYxOC00NDFjLTlhN2EtNzMxZTBhZDQwODM1In0.r89_3Bu7Ji1AZB6ATWoLKnaOYmserhU6gXAMLy8tvBw_UE-tnZYVHjCshS5YK2xZRXh1tcbUDTyvGxzmJqEpDg\" npm run *)"
+      "Bash(TURSO_DATABASE_URL=\"libsql://syncspace-subodh584.aws-ap-south-1.turso.io\" TURSO_AUTH_TOKEN=\"eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODEyMDM0MTUsImlkIjoiMDE5ZWI3ZmYtMWQwMS03ZTZkLWJkMDgtN2NlNWIyMGUzZDEwIiwicmlkIjoiMmRmMWM3MmUtMmYxOC00NDFjLTlhN2EtNzMxZTBhZDQwODM1In0.r89_3Bu7Ji1AZB6ATWoLKnaOYmserhU6gXAMLy8tvBw_UE-tnZYVHjCshS5YK2xZRXh1tcbUDTyvGxzmJqEpDg\" npm run *)",
+      "Bash(openssl rand *)",
+      "Bash(echo \"BETTER_AUTH_SECRET=$\\(openssl rand -base64 32\\)\")",
+      "Bash(git check-ignore *)",
+      "Bash(env -u BETTER_AUTH_URL -u NEXT_PUBLIC_APP_URL TURSO_DATABASE_URL=libsql://syncspace-subodh584.aws-ap-south-1.turso.io TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODEyMDM0MTUsImlkIjoiMDE5ZWI3ZmYtMWQwMS03ZTZkLWJkMDgtN2NlNWIyMGUzZDEwIiwicmlkIjoiMmRmMWM3MmUtMmYxOC00NDFjLTlhN2EtNzMxZTBhZDQwODM1In0.r89_3Bu7Ji1AZB6ATWoLKnaOYmserhU6gXAMLy8tvBw_UE-tnZYVHjCshS5YK2xZRXh1tcbUDTyvGxzmJqEpDg BETTER_AUTH_SECRET=DYWMrTnP+yUG25i/Z52NAMwus0YHLE0o+ez3PH9dKUg= VERCEL_PROJECT_PRODUCTION_URL=syncspace-subodh584.vercel.app npm run build)"
     ]
   }
 }

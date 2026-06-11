@@ -19,10 +19,24 @@ function buildWorkspaceUserId(seed: string): string {
   return `${base}_${suffix}`;
 }
 
+/**
+ * Resolve the auth base URL. Prefers an explicit `BETTER_AUTH_URL`, then falls
+ * back to the stable production domain Vercel injects automatically
+ * (`VERCEL_PROJECT_PRODUCTION_URL`, host only — no protocol), and finally to
+ * localhost for local dev. This avoids hardcoding the deployment URL.
+ */
+function resolveBaseURL(): string {
+  if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  return "http://localhost:3000";
+}
+
 export const auth = betterAuth({
   appName: "SyncSpace",
   secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL: resolveBaseURL(),
   database: drizzleAdapter(db, {
     provider: "sqlite",
     schema: {

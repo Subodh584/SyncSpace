@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(node -e \"const c=require\\('better-auth/crypto'\\); console.log\\('crypto exports:', Object.keys\\(c\\)\\)\")",
+      "Bash(cp /tmp/aliastest.ts src/_aliastest.ts)",
+      "Bash(npx tsx *)",
+      "Bash(curl -s -b /tmp/cookies.txt http://localhost:3000/api/workspaces)",
+      "Bash(pkill -f \"next start\")",
+      "Bash(pkill -f \"next-server\")"
+    ]
+  }
+}

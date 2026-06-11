@@ -8,7 +8,12 @@
       "Bash(npx tsx *)",
       "Bash(curl -s -b /tmp/cookies.txt http://localhost:3000/api/workspaces)",
       "Bash(pkill -f \"next start\")",
-      "Bash(pkill -f \"next-server\")"
+      "Bash(pkill -f \"next-server\")",
+      "Bash(curl -s -i -X POST http://localhost:3000/api/auth/sign-up/email -H \"Content-Type: application/json\" -d '{\"name\":\"Test\",\"email\":\"curltest@example.com\",\"password\":\"password123\",\"username\":\"curltest123\"}')",
+      "Bash(lsof -i :3000 -sTCP:LISTEN -P -n)",
+      "Bash(sqlite3 *)",
+      "Bash(kill 41752)",
+      "Bash(break)"
     ]
   }
 }

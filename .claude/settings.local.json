@@ -24,7 +24,12 @@
       "Bash(openssl rand *)",
       "Bash(echo \"BETTER_AUTH_SECRET=$\\(openssl rand -base64 32\\)\")",
       "Bash(git check-ignore *)",
-      "Bash(env -u BETTER_AUTH_URL -u NEXT_PUBLIC_APP_URL TURSO_DATABASE_URL=libsql://syncspace-subodh584.aws-ap-south-1.turso.io TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODEyMDM0MTUsImlkIjoiMDE5ZWI3ZmYtMWQwMS03ZTZkLWJkMDgtN2NlNWIyMGUzZDEwIiwicmlkIjoiMmRmMWM3MmUtMmYxOC00NDFjLTlhN2EtNzMxZTBhZDQwODM1In0.r89_3Bu7Ji1AZB6ATWoLKnaOYmserhU6gXAMLy8tvBw_UE-tnZYVHjCshS5YK2xZRXh1tcbUDTyvGxzmJqEpDg BETTER_AUTH_SECRET=DYWMrTnP+yUG25i/Z52NAMwus0YHLE0o+ez3PH9dKUg= VERCEL_PROJECT_PRODUCTION_URL=syncspace-subodh584.vercel.app npm run build)"
+      "Bash(env -u BETTER_AUTH_URL -u NEXT_PUBLIC_APP_URL TURSO_DATABASE_URL=libsql://syncspace-subodh584.aws-ap-south-1.turso.io TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODEyMDM0MTUsImlkIjoiMDE5ZWI3ZmYtMWQwMS03ZTZkLWJkMDgtN2NlNWIyMGUzZDEwIiwicmlkIjoiMmRmMWM3MmUtMmYxOC00NDFjLTlhN2EtNzMxZTBhZDQwODM1In0.r89_3Bu7Ji1AZB6ATWoLKnaOYmserhU6gXAMLy8tvBw_UE-tnZYVHjCshS5YK2xZRXh1tcbUDTyvGxzmJqEpDg BETTER_AUTH_SECRET=DYWMrTnP+yUG25i/Z52NAMwus0YHLE0o+ez3PH9dKUg= VERCEL_PROJECT_PRODUCTION_URL=syncspace-subodh584.vercel.app npm run build)",
+      "Bash(node -p \"const p=require\\('./package.json'\\); JSON.stringify\\({next:p.dependencies.next, eslintNext:p.devDependencies?.['eslint-config-next'], react:p.dependencies.react, reactDom:p.dependencies['react-dom']},null,2\\)\")",
+      "Bash(npm view *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Upgrade Next.js to 15.1.11 \\(CVE-2025-66478, -55183, -55184/-67779\\) *)",
+      "Bash(git push *)"
     ]
   }
 }

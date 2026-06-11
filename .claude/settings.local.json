@@ -13,7 +13,14 @@
       "Bash(lsof -i :3000 -sTCP:LISTEN -P -n)",
       "Bash(sqlite3 *)",
       "Bash(kill 41752)",
-      "Bash(break)"
+      "Bash(break)",
+      "Bash(npm ls *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(turso --version)",
+      "Bash(curl -sSfL https://get.tur.so/install.sh)",
+      "Bash(bash)",
+      "Bash(/home/subodhchauhan/.turso/turso *)",
+      "Bash(TURSO_DATABASE_URL=\"libsql://syncspace-subodh584.aws-ap-south-1.turso.io\" TURSO_AUTH_TOKEN=\"eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODEyMDM0MTUsImlkIjoiMDE5ZWI3ZmYtMWQwMS03ZTZkLWJkMDgtN2NlNWIyMGUzZDEwIiwicmlkIjoiMmRmMWM3MmUtMmYxOC00NDFjLTlhN2EtNzMxZTBhZDQwODM1In0.r89_3Bu7Ji1AZB6ATWoLKnaOYmserhU6gXAMLy8tvBw_UE-tnZYVHjCshS5YK2xZRXh1tcbUDTyvGxzmJqEpDg\" npm run *)"
     ]
   }
 }

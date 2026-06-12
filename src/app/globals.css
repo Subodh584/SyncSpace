@@ -56,5 +56,26 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* Smooth momentum scrolling + no rubber-band overscroll chaining on phones */
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbars on horizontally-scrollable mobile strips (e.g. tab nav). */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Safe-area helpers for notch / home-indicator devices (viewport-fit=cover). */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

@@ -13,7 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -22,28 +21,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/constants";
 import type { MemberWithUser } from "@/lib/services/members";
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export function PlanMealDialog({
   workspaceId,
+  day,
   members,
+  cookMealsPerDay,
+  takenSlots,
 }: {
   workspaceId: string;
+  day: "today" | "tomorrow";
   members: MemberWithUser[];
+  cookMealsPerDay: number;
+  takenSlots: number[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [type, setType] = useState<string>("dinner");
-  const [date, setDate] = useState(todayISO());
+
+  const availableSlots = Array.from(
+    { length: cookMealsPerDay },
+    (_, i) => i + 1,
+  ).filter((s) => !takenSlots.includes(s));
+
+  const [slot, setSlot] = useState(String(availableSlots[0] ?? 1));
+  const [skip, setSkip] = useState(false);
   const [included, setIncluded] = useState<Record<string, boolean>>(
     Object.fromEntries(members.map((m) => [m.userId, true])),
   );
+
+  const full = availableSlots.length === 0;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -53,88 +61,99 @@ export function PlanMealDialog({
     setLoading(true);
     const res = await createMeal({
       workspaceId,
-      type,
-      date: new Date(date),
+      day,
+      slot: Number(slot),
       memberIds,
+      skipped: skip,
     });
-    setLoading(false);
-    if (!res.ok) return toast.error(res.error);
-    toast.success(`${MEAL_TYPE_LABELS[type]} planned`);
-    setOpen(false);
-    router.push(`/workspaces/${workspaceId}/food/${res.data.id}`);
+    if (!res.ok) {
+      setLoading(false);
+      return toast.error(res.error);
+    }
+    if (skip) {
+      setLoading(false);
+      setOpen(false);
+      toast.success(`Meal ${slot} skipped`);
+      router.refresh();
+    } else {
+      // Keep the loader running until the meal page loads — the dialog
+      // unmounts on navigation.
+      router.push(`/workspaces/${workspaceId}/food/${res.data.id}`);
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button size="sm" disabled={full} title={full ? "All meals planned" : undefined}>
           <Plus className="h-4 w-4" /> Plan a meal
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Plan a meal</DialogTitle>
+          <DialogTitle>
+            Plan a meal — {day === "today" ? "Today" : "Tomorrow"}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Meal</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MEAL_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {MEAL_TYPE_LABELS[t]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
-            <Label>Who&apos;s eating?</Label>
-            <div className="max-h-48 space-y-1.5 overflow-y-auto rounded-md border p-2">
-              {members.map((m) => (
-                <label
-                  key={m.userId}
-                  className="flex cursor-pointer items-center gap-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={included[m.userId] ?? true}
-                    onChange={(e) =>
-                      setIncluded((prev) => ({
-                        ...prev,
-                        [m.userId]: e.target.checked,
-                      }))
-                    }
-                  />
-                  <span className="flex-1 truncate">{m.name}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              You can add guests and set each person&apos;s rotis on the next
-              screen.
-            </p>
+            <Label>Which meal?</Label>
+            <Select value={slot} onValueChange={setSlot}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableSlots.map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    Meal {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <label className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm">
+            <input
+              type="checkbox"
+              checked={skip}
+              onChange={(e) => setSkip(e.target.checked)}
+            />
+            <span>Skip this meal (cook won&apos;t cook it)</span>
+          </label>
+
+          {!skip && (
+            <div className="space-y-2">
+              <Label>Who&apos;s eating?</Label>
+              <div className="max-h-48 space-y-1.5 overflow-y-auto rounded-md border p-2">
+                {members.map((m) => (
+                  <label
+                    key={m.userId}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={included[m.userId] ?? true}
+                      onChange={(e) =>
+                        setIncluded((prev) => ({
+                          ...prev,
+                          [m.userId]: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span className="flex-1 truncate">{m.name}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Set each person&apos;s rotis and vote on the sabzi on the next
+                screen.
+              </p>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full" disabled={loading || full}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loading ? "Planning…" : "Plan meal"}
+            {loading ? "Saving…" : skip ? "Skip meal" : "Plan meal"}
           </Button>
         </form>
       </DialogContent>

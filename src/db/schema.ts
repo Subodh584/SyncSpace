@@ -133,6 +133,8 @@ export const workspaces = sqliteTable(
       .notNull()
       .default("round_robin"),
     currency: text("currency").notNull().default("INR"),
+    // How many times the cook comes per day → number of meal slots per day.
+    cookMealsPerDay: integer("cook_meals_per_day").notNull().default(2),
     createdAt,
     updatedAt,
   },
@@ -387,13 +389,17 @@ export const meals = sqliteTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    type: text("type", { enum: ["breakfast", "lunch", "dinner"] }).notNull(),
+    // Meal slot within the day (1-based): "Meal 1", "Meal 2", … up to the
+    // workspace's cook_meals_per_day.
+    slot: integer("slot").notNull().default(1),
+    // The calendar day this meal is for (local midnight). "Today" / "tomorrow"
+    // is derived by comparing to the current date — tomorrow's plan becomes
+    // today's automatically once the clock rolls past midnight.
     date: integer("date", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
-    status: text("status", { enum: ["open", "closed"] })
-      .notNull()
-      .default("open"),
+    // The whole meal is skipped (cook not cooking this slot).
+    skipped: integer("skipped", { mode: "boolean" }).notNull().default(false),
     notes: text("notes"),
     createdBy: text("created_by").references(() => user.id, {
       onDelete: "set null",

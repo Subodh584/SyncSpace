@@ -1,4 +1,4 @@
-import { eq, desc, inArray } from "drizzle-orm";
+import { and, eq, gte, lt, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   meals,
@@ -6,8 +6,22 @@ import {
   mealPolls,
   mealPollOptions,
   mealPollVotes,
+  workspaces,
   user,
 } from "@/db/schema";
+
+/** Local midnight at the start of today. */
+export function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function addDays(d: Date, n: number): Date {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
 
 export interface ParticipantView {
   id: string;
@@ -76,6 +90,7 @@ export interface PollView {
   winningOptionId: string | null;
   options: PollOptionView[];
   myOptionId: string | null; // the viewer's current vote, if any
+  canDelete: boolean; // the viewer created this poll
 }
 
 /** Join participants to user names; guests use guestName. */
@@ -141,6 +156,7 @@ async function getPolls(
       status: p.status,
       winningOptionId: p.winningOptionId,
       myOptionId: myVote?.optionId ?? null,
+      canDelete: p.createdBy === viewerId,
       options: options
         .filter((o) => o.pollId === p.id)
         .map((o) => {
@@ -187,24 +203,34 @@ export async function getMealDetail(
 
 export interface MealListItem {
   id: string;
-  type: "breakfast" | "lunch" | "dinner";
-  date: Date;
-  status: "open" | "closed";
-  isNext: boolean; // the soonest upcoming meal (today or later)
+  slot: number;
+  skipped: boolean;
   summary: CookingSummary;
   sabzi: string | null; // winning sabzi label, if finalized
 }
 
-/** Meals for a workspace with a lightweight cooking summary per meal. */
-export async function listMeals(workspaceId: string): Promise<MealListItem[]> {
-  const rows = await db
-    .select()
-    .from(meals)
-    .where(eq(meals.workspaceId, workspaceId))
-    .orderBy(desc(meals.date), desc(meals.createdAt));
-  if (rows.length === 0) return [];
+export interface FoodBoard {
+  cookMealsPerDay: number;
+  today: MealListItem[];
+  tomorrow: MealListItem[];
+}
 
+/** Delete meals dated before today — the previous day's plan is cleared. */
+export async function cleanupPastMeals(workspaceId: string): Promise<void> {
+  await db
+    .delete(meals)
+    .where(
+      and(eq(meals.workspaceId, workspaceId), lt(meals.date, startOfToday())),
+    );
+}
+
+/** Build a MealListItem (summary + sabzi) for a set of meal rows. */
+async function summarizeMeals(
+  rows: (typeof meals.$inferSelect)[],
+): Promise<MealListItem[]> {
+  if (rows.length === 0) return [];
   const mealIds = rows.map((m) => m.id);
+
   const parts = await db
     .select({
       mealId: mealParticipants.mealId,
@@ -215,7 +241,6 @@ export async function listMeals(workspaceId: string): Promise<MealListItem[]> {
     .from(mealParticipants)
     .where(inArray(mealParticipants.mealId, mealIds));
 
-  // Resolve the chosen sabzi (winning option of a finalized sabzi poll).
   const sabziPolls = await db
     .select()
     .from(mealPolls)
@@ -230,33 +255,70 @@ export async function listMeals(workspaceId: string): Promise<MealListItem[]> {
         .where(inArray(mealPollOptions.id, winningOptionIds))
     : [];
 
-  // The "next meal" is the soonest one dated today or later.
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const upcoming = rows
-    .filter((m) => m.date.getTime() >= startOfToday.getTime())
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
-  const nextMealId = upcoming[0]?.id ?? null;
+  return rows
+    .map((m) => {
+      const mealParts = parts
+        .filter((p) => p.mealId === m.id)
+        .map((p) => ({
+          choice: p.choice,
+          rotiCount: p.rotiCount,
+          isGuest: !p.userId,
+        }));
+      const sabziPoll = sabziPolls.find(
+        (p) => p.mealId === m.id && p.category === "sabzi" && p.winningOptionId,
+      );
+      const sabzi = sabziPoll
+        ? (winningOptions.find((o) => o.id === sabziPoll.winningOptionId)
+            ?.label ?? null)
+        : null;
+      return {
+        id: m.id,
+        slot: m.slot,
+        skipped: m.skipped,
+        summary: computeCookingSummary(mealParts),
+        sabzi,
+      };
+    })
+    .sort((a, b) => a.slot - b.slot);
+}
 
-  return rows.map((m) => {
-    const mealParts = parts
-      .filter((p) => p.mealId === m.id)
-      .map((p) => ({ choice: p.choice, rotiCount: p.rotiCount, isGuest: !p.userId }));
-    const sabziPoll = sabziPolls.find(
-      (p) => p.mealId === m.id && p.category === "sabzi" && p.winningOptionId,
-    );
-    const sabzi = sabziPoll
-      ? (winningOptions.find((o) => o.id === sabziPoll.winningOptionId)?.label ??
-        null)
-      : null;
-    return {
-      id: m.id,
-      type: m.type,
-      date: m.date,
-      status: m.status,
-      isNext: m.id === nextMealId,
-      summary: computeCookingSummary(mealParts),
-      sabzi,
-    };
-  });
+/** Today's and tomorrow's plans plus the cook frequency for a workspace. */
+export async function getFoodBoard(workspaceId: string): Promise<FoodBoard> {
+  const todayStart = startOfToday();
+  const tomorrowStart = addDays(todayStart, 1);
+  const dayAfterStart = addDays(todayStart, 2);
+
+  const [wsRow, rows] = await Promise.all([
+    db
+      .select({ cookMealsPerDay: workspaces.cookMealsPerDay })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1),
+    db
+      .select()
+      .from(meals)
+      .where(
+        and(
+          eq(meals.workspaceId, workspaceId),
+          gte(meals.date, todayStart),
+          lt(meals.date, dayAfterStart),
+        ),
+      ),
+  ]);
+
+  const todayRows = rows.filter((m) => m.date.getTime() < tomorrowStart.getTime());
+  const tomorrowRows = rows.filter(
+    (m) => m.date.getTime() >= tomorrowStart.getTime(),
+  );
+
+  const [today, tomorrow] = await Promise.all([
+    summarizeMeals(todayRows),
+    summarizeMeals(tomorrowRows),
+  ]);
+
+  return {
+    cookMealsPerDay: wsRow[0]?.cookMealsPerDay ?? 2,
+    today,
+    tomorrow,
+  };
 }

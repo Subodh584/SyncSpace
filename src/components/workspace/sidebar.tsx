@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -32,6 +32,9 @@ function useNavItems(workspaceId: string, isOwner: boolean) {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // The href currently being navigated to, so the loader shows on the
+  // destination tab — not the tab we're leaving.
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const base = `/workspaces/${workspaceId}`;
   const items = isOwner
     ? [...NAV, { href: "/settings", label: "Settings", icon: Settings }]
@@ -39,10 +42,14 @@ function useNavItems(workspaceId: string, isOwner: boolean) {
 
   function navigate(href: string) {
     if (href === pathname) return;
+    setPendingHref(href);
     startTransition(() => router.push(href));
   }
 
-  return { pathname, base, items, isPending, navigate };
+  // While a navigation is in flight, the destination is "loading".
+  const loadingHref = isPending ? pendingHref : null;
+
+  return { pathname, base, items, loadingHref, navigate };
 }
 
 export function WorkspaceSidebar({
@@ -54,7 +61,7 @@ export function WorkspaceSidebar({
   workspaceName: string;
   isOwner: boolean;
 }) {
-  const { pathname, base, items, isPending, navigate } = useNavItems(
+  const { pathname, base, items, loadingHref, navigate } = useNavItems(
     workspaceId,
     isOwner,
   );
@@ -87,7 +94,7 @@ export function WorkspaceSidebar({
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
-                {isPending && active ? (
+                {loadingHref === href ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <item.icon className="h-4 w-4" />
@@ -110,12 +117,12 @@ export function WorkspaceMobileNav({
   workspaceId: string;
   isOwner: boolean;
 }) {
-  const { pathname, base, items, isPending, navigate } = useNavItems(
+  const { pathname, base, items, loadingHref, navigate } = useNavItems(
     workspaceId,
     isOwner,
   );
   return (
-    <nav className="flex gap-1 overflow-x-auto border-b p-2 md:hidden">
+    <nav className="no-scrollbar sticky top-16 z-30 flex gap-1 overflow-x-auto border-b bg-background/95 px-2 py-2 backdrop-blur md:hidden">
       {items.map((item) => {
         const href = `${base}${item.href}`;
         const active =
@@ -126,13 +133,13 @@ export function WorkspaceMobileNav({
             type="button"
             onClick={() => navigate(href)}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm",
+              "flex min-h-[40px] shrink-0 items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors",
               active
                 ? "bg-primary/10 text-primary"
-                : "text-muted-foreground",
+                : "text-muted-foreground active:bg-accent",
             )}
           >
-            {isPending && active ? (
+            {loadingHref === href ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <item.icon className="h-4 w-4" />

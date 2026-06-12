@@ -64,15 +64,13 @@ export function ParticipantChoice({ p }: { p: ParticipantView }) {
         {p.image && <AvatarImage src={p.image} />}
         <AvatarFallback className="text-xs">{initials(p.name)}</AvatarFallback>
       </Avatar>
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-          {p.name}
-          {p.isGuest && (
-            <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-              Guest
-            </Badge>
-          )}
-        </p>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <span className="truncate text-sm font-medium">{p.name}</span>
+        {p.isGuest && (
+          <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px]">
+            Guest
+          </Badge>
+        )}
       </div>
 
       {needsRotis && (

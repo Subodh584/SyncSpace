@@ -1,17 +1,18 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Wheat, CookingPot } from "lucide-react";
+import { ArrowLeft, Wheat, CookingPot, Check } from "lucide-react";
 import { requireMember } from "@/lib/auth-helpers";
 import { getMealDetail } from "@/lib/services/meals";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MEAL_TYPE_LABELS } from "@/lib/constants";
+import { buttonVariants } from "@/components/ui/button";
 import { relativeDay } from "@/lib/utils";
 import { ParticipantChoice } from "@/components/food/participant-choice";
 import { AddGuest } from "@/components/food/add-guest";
 import { MealPoll } from "@/components/food/meal-poll";
 import { AddPoll } from "@/components/food/add-poll";
 import { DeleteMeal } from "@/components/food/delete-meal";
+import { SkipMealToggle } from "@/components/food/skip-meal-toggle";
 
 export default async function MealDetailPage({
   params,
@@ -47,17 +48,27 @@ export default async function MealDetailPage({
       <div className="mb-6 flex items-start justify-between gap-2">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            {MEAL_TYPE_LABELS[meal.type]}
-            <Badge variant={meal.status === "open" ? "secondary" : "outline"}>
-              {meal.status === "open" ? "Open" : "Closed"}
-            </Badge>
+            Meal {meal.slot}
+            {meal.skipped && (
+              <Badge variant="outline">Skipped</Badge>
+            )}
           </h1>
           <p className="text-sm text-muted-foreground">
             {relativeDay(meal.date)}
           </p>
         </div>
-        {canManage && <DeleteMeal mealId={meal.id} workspaceId={id} />}
+        <div className="flex items-center gap-1">
+          <SkipMealToggle mealId={meal.id} skipped={meal.skipped} />
+          {canManage && <DeleteMeal mealId={meal.id} workspaceId={id} />}
+        </div>
       </div>
+
+      {meal.skipped && (
+        <div className="mb-6 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+          This meal is skipped — the cook isn&apos;t cooking it. Unskip to plan
+          it.
+        </div>
+      )}
 
       {/* Cooking summary — the headline output */}
       <Card className="mb-6">
@@ -127,6 +138,15 @@ export default async function MealDetailPage({
             )}
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <Link
+          href={`/workspaces/${id}/food`}
+          className={buttonVariants({ size: "lg" })}
+        >
+          <Check className="h-4 w-4" /> Done
+        </Link>
       </div>
     </div>
   );

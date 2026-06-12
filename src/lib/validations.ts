@@ -6,7 +6,6 @@ import {
   SPLIT_METHODS,
   ASSIGNMENT_STRATEGIES,
   ROTATION_FREQUENCIES,
-  MEAL_TYPES,
   EATING_CHOICES,
   POLL_CATEGORIES,
 } from "./constants";
@@ -133,11 +132,24 @@ export const markSettledSchema = z.object({
 });
 
 /* Food / meals */
+export const setCookFrequencySchema = z.object({
+  workspaceId: z.string().min(1),
+  count: z.coerce.number().int().min(1).max(6),
+});
+
 export const createMealSchema = z.object({
   workspaceId: z.string().min(1),
-  type: z.enum(MEAL_TYPES),
-  date: z.coerce.date().optional(),
+  // Which day the meal is for. Tomorrow's plan becomes today's after midnight.
+  day: z.enum(["today", "tomorrow"]).default("tomorrow"),
+  // Meal slot within the day (1-based).
+  slot: z.coerce.number().int().min(1).max(6),
   memberIds: z.array(z.string()).default([]),
+  skipped: z.boolean().default(false),
+});
+
+export const setMealSkippedSchema = z.object({
+  mealId: z.string().min(1),
+  skipped: z.boolean(),
 });
 
 export const setParticipantChoiceSchema = z.object({
@@ -173,6 +185,10 @@ export const createPollSchema = z.object({
 export const addPollOptionSchema = z.object({
   pollId: z.string().min(1),
   label: z.string().trim().min(1, "Enter an option").max(80),
+});
+
+export const deletePollSchema = z.object({
+  pollId: z.string().min(1),
 });
 
 export const votePollSchema = z.object({

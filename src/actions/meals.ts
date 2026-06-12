@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, lt } from "drizzle-orm";
 import { db } from "@/db";
 import {
   meals,
@@ -9,23 +9,27 @@ import {
   mealPolls,
   mealPollOptions,
   mealPollVotes,
+  workspaces,
 } from "@/db/schema";
 import { genId } from "@/lib/ids";
 import {
   createMealSchema,
+  setCookFrequencySchema,
+  setMealSkippedSchema,
   setParticipantChoiceSchema,
   addGuestSchema,
   removeParticipantSchema,
   deleteMealSchema,
   createPollSchema,
   addPollOptionSchema,
+  deletePollSchema,
   votePollSchema,
   finalizePollSchema,
 } from "@/lib/validations";
 import { requireMember, AuthError } from "@/lib/auth-helpers";
 import { logActivity, notifyMany } from "@/lib/services/activity";
 import { getMemberIds } from "@/lib/services/members";
-import { MEAL_TYPE_LABELS } from "@/lib/constants";
+import { startOfToday, addDays } from "@/lib/services/meals";
 import { type ActionResult, fail, ok } from "@/lib/action";
 
 const foodPath = (workspaceId: string) => `/workspaces/${workspaceId}/food`;
@@ -48,6 +52,22 @@ function ensureCreatorOrOwner(
   }
 }
 
+/** Set how many times the cook comes per day (persisted on the workspace). */
+export async function setCookFrequency(raw: unknown): Promise<ActionResult> {
+  try {
+    const input = setCookFrequencySchema.parse(raw);
+    await requireMember(input.workspaceId);
+    await db
+      .update(workspaces)
+      .set({ cookMealsPerDay: input.count, updatedAt: new Date() })
+      .where(eq(workspaces.id, input.workspaceId));
+    revalidatePath(foodPath(input.workspaceId));
+    return ok(null);
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 export async function createMeal(
   raw: unknown,
 ): Promise<ActionResult<{ id: string }>> {
@@ -55,61 +75,118 @@ export async function createMeal(
     const input = createMealSchema.parse(raw);
     const { user: me } = await requireMember(input.workspaceId);
 
+    const wsRow = await db
+      .select({ cookMealsPerDay: workspaces.cookMealsPerDay })
+      .from(workspaces)
+      .where(eq(workspaces.id, input.workspaceId))
+      .limit(1);
+    const cookMealsPerDay = wsRow[0]?.cookMealsPerDay ?? 2;
+    if (input.slot > cookMealsPerDay) {
+      throw new AuthError(`Only ${cookMealsPerDay} meal(s) per day`, 400);
+    }
+
+    const dayStart =
+      input.day === "today" ? startOfToday() : addDays(startOfToday(), 1);
+    const nextDayStart = addDays(dayStart, 1);
+
+    // One meal per slot per day.
+    const existing = await db
+      .select({ id: meals.id })
+      .from(meals)
+      .where(
+        and(
+          eq(meals.workspaceId, input.workspaceId),
+          eq(meals.slot, input.slot),
+          gte(meals.date, dayStart),
+          lt(meals.date, nextDayStart),
+        ),
+      )
+      .limit(1);
+    if (existing[0]) {
+      throw new AuthError(
+        `Meal ${input.slot} is already planned for ${input.day}`,
+        400,
+      );
+    }
+
     const id = genId();
     await db.insert(meals).values({
       id,
       workspaceId: input.workspaceId,
-      type: input.type,
-      date: input.date ?? new Date(),
-      status: "open",
+      slot: input.slot,
+      date: dayStart,
+      skipped: input.skipped,
       createdBy: me.id,
     });
 
-    // Seed a participant row (defaulting to "not eating") for each selected member.
-    if (input.memberIds.length > 0) {
-      await db.insert(mealParticipants).values(
-        input.memberIds.map((userId) => ({
-          id: genId(),
-          mealId: id,
-          userId,
-          choice: "none" as const,
-          rotiCount: 0,
-        })),
-      );
+    // A skipped meal needs no participants or poll.
+    if (!input.skipped) {
+      if (input.memberIds.length > 0) {
+        await db.insert(mealParticipants).values(
+          input.memberIds.map((userId) => ({
+            id: genId(),
+            mealId: id,
+            userId,
+            choice: "none" as const,
+            rotiCount: 0,
+          })),
+        );
+      }
+      // Every meal starts with a sabzi poll ready for options + votes.
+      await db.insert(mealPolls).values({
+        id: genId(),
+        mealId: id,
+        category: "sabzi",
+        title: "Which sabzi to make?",
+        status: "open",
+        createdBy: me.id,
+      });
     }
 
-    // Every meal starts with a sabzi poll ready for options + votes.
-    await db.insert(mealPolls).values({
-      id: genId(),
-      mealId: id,
-      category: "sabzi",
-      title: "Which sabzi to make?",
-      status: "open",
-      createdBy: me.id,
-    });
-
+    const label = `Meal ${input.slot}`;
     await logActivity({
       workspaceId: input.workspaceId,
       actorId: me.id,
       type: "meal_planned",
-      message: `${me.name} planned ${MEAL_TYPE_LABELS[input.type]}`,
+      message: input.skipped
+        ? `${me.name} marked ${label} (${input.day}) as skipped`
+        : `${me.name} planned ${label} for ${input.day}`,
       metadata: { mealId: id },
     });
-    const members = await getMemberIds(input.workspaceId);
-    await notifyMany(
-      members,
-      {
-        workspaceId: input.workspaceId,
-        type: "meal_planned",
-        title: `${MEAL_TYPE_LABELS[input.type]} planned`,
-        body: "Set how many rotis you'll eat and vote on the sabzi.",
-        link: `/workspaces/${input.workspaceId}/food/${id}`,
-      },
-      me.id,
-    );
+    if (!input.skipped) {
+      const members = await getMemberIds(input.workspaceId);
+      await notifyMany(
+        members,
+        {
+          workspaceId: input.workspaceId,
+          type: "meal_planned",
+          title: `${label} planned (${input.day})`,
+          body: "Set how many rotis you'll eat and vote on the sabzi.",
+          link: `/workspaces/${input.workspaceId}/food/${id}`,
+        },
+        me.id,
+      );
+    }
 
     revalidatePath(foodPath(input.workspaceId));
     return ok({ id });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Skip or unskip an entire meal. */
+export async function setMealSkipped(raw: unknown): Promise<ActionResult> {
+  try {
+    const input = setMealSkippedSchema.parse(raw);
+    const { meal } = await loadMealContext(input.mealId);
+    await db
+      .update(meals)
+      .set({ skipped: input.skipped, updatedAt: new Date() })
+      .where(eq(meals.id, meal.id));
+    revalidatePath(foodPath(meal.workspaceId));
+    revalidatePath(`${foodPath(meal.workspaceId)}/${meal.id}`);
+    return ok(null);
   } catch (err) {
     return fail(err);
   }
@@ -252,6 +329,33 @@ export async function addPollOption(raw: unknown): Promise<ActionResult> {
     });
 
     revalidatePath(`${foodPath(meal.workspaceId)}/${meal.id}`);
+    return ok(null);
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Delete a poll (and its options/votes). Only the poll's creator may do this. */
+export async function deletePoll(raw: unknown): Promise<ActionResult> {
+  try {
+    const input = deletePollSchema.parse(raw);
+    const pollRows = await db
+      .select()
+      .from(mealPolls)
+      .where(eq(mealPolls.id, input.pollId))
+      .limit(1);
+    if (!pollRows[0]) throw new AuthError("Poll not found", 404);
+    const poll = pollRows[0];
+    const { meal, me } = await loadMealContext(poll.mealId);
+
+    if (poll.createdBy !== me.id) {
+      throw new AuthError("Only the person who created this poll can delete it", 403);
+    }
+
+    await db.delete(mealPolls).where(eq(mealPolls.id, poll.id));
+
+    revalidatePath(`${foodPath(meal.workspaceId)}/${meal.id}`);
+    revalidatePath(foodPath(meal.workspaceId));
     return ok(null);
   } catch (err) {
     return fail(err);

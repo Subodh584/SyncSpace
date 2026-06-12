@@ -14,7 +14,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+      <header className="pt-safe sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <Link
             href="/workspaces"

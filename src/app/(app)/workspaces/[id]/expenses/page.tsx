@@ -62,21 +62,20 @@ export default async function ExpensesPage({
         <Card>
           <CardContent className="divide-y p-0">
             {expenses.map((e) => (
-              <div key={e.id} className="flex items-center gap-3 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <div key={e.id} className="flex items-center gap-3 p-3 sm:p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Coins className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{e.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Paid by {nameOf(e.paidBy)} ·{" "}
-                    {e.date.toLocaleDateString()}
+                  <p className="truncate text-xs text-muted-foreground">
+                    Paid by {nameOf(e.paidBy)} · {e.date.toLocaleDateString()}
                   </p>
                 </div>
-                <Badge variant="secondary">
+                <Badge variant="secondary" className="hidden sm:inline-flex">
                   {CATEGORY_LABELS[e.category]}
                 </Badge>
-                <span className="w-24 text-right font-semibold">
+                <span className="shrink-0 text-right font-semibold">
                   {formatCurrency(e.amount)}
                 </span>
                 <DeleteExpense expenseId={e.id} disabled={locked} />

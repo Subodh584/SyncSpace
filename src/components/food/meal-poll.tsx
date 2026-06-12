@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Check, Lock, RotateCcw, Trophy } from "lucide-react";
+import { Loader2, Plus, Check, Lock, RotateCcw, Trophy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   votePoll,
   addPollOption,
   finalizePoll,
   reopenPoll,
+  deletePoll,
 } from "@/actions/meals";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export function MealPoll({
   const [newOption, setNewOption] = useState("");
   const [addingOption, setAddingOption] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const closed = poll.status === "closed";
   const totalVotes = poll.options.reduce((s, o) => s + o.votes, 0);
@@ -60,6 +62,16 @@ export function MealPoll({
     router.refresh();
   }
 
+  async function remove() {
+    if (!confirm(`Delete the poll "${poll.title}"?`)) return;
+    setDeleting(true);
+    const res = await deletePoll({ pollId: poll.id });
+    setDeleting(false);
+    if (!res.ok) return toast.error(res.error);
+    toast.success("Poll deleted");
+    router.refresh();
+  }
+
   async function addOption(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!newOption.trim()) return;
@@ -80,15 +92,33 @@ export function MealPoll({
             {POLL_CATEGORY_LABELS[poll.category]}
           </Badge>
         </div>
-        {closed ? (
-          <Badge variant="success" className="gap-1">
-            <Lock className="h-3 w-3" /> Decided
-          </Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {totalVotes} vote{totalVotes === 1 ? "" : "s"}
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          {closed ? (
+            <Badge variant="success" className="gap-1">
+              <Lock className="h-3 w-3" /> Decided
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {totalVotes} vote{totalVotes === 1 ? "" : "s"}
+            </span>
+          )}
+          {poll.canDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-destructive"
+              onClick={remove}
+              disabled={deleting}
+              title="Delete poll"
+            >
+              {deleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
       {poll.options.length === 0 ? (

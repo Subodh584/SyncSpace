@@ -125,16 +125,18 @@ export default async function SettlementsPage({
                 {pending.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center gap-2 rounded-lg border p-3"
+                    className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-lg border p-3"
                   >
-                    <span className="text-sm font-medium">
-                      {nameOf(s.fromUserId)}
-                    </span>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">
-                      {nameOf(s.toUserId)}
-                    </span>
-                    <span className="ml-auto font-semibold">
+                    <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-0">
+                      <span className="truncate text-sm font-medium">
+                        {nameOf(s.fromUserId)}
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-sm font-medium">
+                        {nameOf(s.toUserId)}
+                      </span>
+                    </div>
+                    <span className="font-semibold">
                       {formatCurrency(s.amount)}
                     </span>
                     <MarkPaid
@@ -146,12 +148,18 @@ export default async function SettlementsPage({
                 {completed.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center gap-2 rounded-lg border border-dashed p-3 opacity-70"
+                    className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-lg border border-dashed p-3 opacity-70"
                   >
-                    <span className="text-sm">{nameOf(s.fromUserId)}</span>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{nameOf(s.toUserId)}</span>
-                    <span className="ml-auto font-semibold">
+                    <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-0">
+                      <span className="truncate text-sm">
+                        {nameOf(s.fromUserId)}
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-sm">
+                        {nameOf(s.toUserId)}
+                      </span>
+                    </div>
+                    <span className="font-semibold">
                       {formatCurrency(s.amount)}
                     </span>
                     <Badge variant="success">Paid</Badge>

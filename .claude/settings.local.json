@@ -34,7 +34,18 @@
       "Bash(node -e \"console.log\\(require\\('./node_modules/better-auth/package.json'\\).version\\)\")",
       "Bash(npx tsc *)",
       "Bash(npx next *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(magick -background none icon.svg -resize 192x192 icon-192.png)",
+      "Bash(magick -background none icon.svg -resize 512x512 icon-512.png)",
+      "Bash(magick -background none icon-maskable.svg -resize 192x192 icon-maskable-192.png)",
+      "Bash(magick -background none icon-maskable.svg -resize 512x512 icon-maskable-512.png)",
+      "Bash(magick -background none icon.svg -resize 180x180 apple-touch-icon.png)",
+      "Read(//home/subodhchauhan/Downloads/**)",
+      "Bash(magick identify *)",
+      "Bash(magick '/home/subodhchauhan/Downloads/Gemini_Generated_Image_bxe250bxe250bxe2-removebg-preview.ico' /tmp/icon_preview.png)",
+      "Bash(magick /home/subodhchauhan/Downloads/Gemini_Generated_Image_bxe250bxe250bxe2-removebg-preview.ico -format '%[pixel:p{60,60}]' info:)",
+      "Bash(magick /home/subodhchauhan/Downloads/Gemini_Generated_Image_bxe250bxe250bxe2-removebg-preview.ico -format '%[pixel:p{128,128}]' info:)",
+      "Bash(magick /home/subodhchauhan/Downloads/Gemini_Generated_Image_bxe250bxe250bxe2-removebg-preview.ico -format '%[pixel:p{200,200}]' info:)"
     ]
   }
 }

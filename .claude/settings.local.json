@@ -29,7 +29,12 @@
       "Bash(npm view *)",
       "Bash(git add *)",
       "Bash(git commit -m 'Upgrade Next.js to 15.1.11 \\(CVE-2025-66478, -55183, -55184/-67779\\) *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(gh auth *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/better-auth/package.json'\\).version\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(python3 *)"
     ]
   }
 }

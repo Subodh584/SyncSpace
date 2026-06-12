@@ -9,6 +9,10 @@ import { createExpenseSchema, updateExpenseSchema } from "@/lib/validations";
 import { requireMember, getMembership, AuthError } from "@/lib/auth-helpers";
 import { logActivity, notifyMany } from "@/lib/services/activity";
 import { getMemberIds } from "@/lib/services/members";
+import {
+  clearWorkspaceSettlements,
+  hasCompletedSettlements,
+} from "@/lib/services/settlements";
 import { calculateSplits, validateSplits } from "@/lib/algorithms/splits";
 import { formatCurrency } from "@/lib/utils";
 import { type ActionResult, fail, ok } from "@/lib/action";
@@ -76,7 +80,11 @@ export async function createExpense(
       me.id,
     );
 
+    // Existing settlements were computed against the old expense set.
+    await clearWorkspaceSettlements(input.workspaceId);
+
     revalidatePath(`/workspaces/${input.workspaceId}/expenses`);
+    revalidatePath(`/workspaces/${input.workspaceId}/settlements`);
     return ok({ id });
   } catch (err) {
     return fail(err);
@@ -127,7 +135,11 @@ export async function updateExpense(raw: unknown): Promise<ActionResult> {
       })),
     );
 
+    // Existing settlements were computed against the old expense set.
+    await clearWorkspaceSettlements(existing[0].workspaceId);
+
     revalidatePath(`/workspaces/${existing[0].workspaceId}/expenses`);
+    revalidatePath(`/workspaces/${existing[0].workspaceId}/settlements`);
     return ok(null);
   } catch (err) {
     return fail(err);
@@ -143,8 +155,23 @@ export async function deleteExpense(expenseId: string): Promise<ActionResult> {
       .limit(1);
     if (!existing[0]) throw new AuthError("Expense not found", 404);
     await requireMember(existing[0].workspaceId);
+
+    // Block deletion once anyone has settled up — removing the expense would
+    // silently invalidate money that already changed hands.
+    if (await hasCompletedSettlements(existing[0].workspaceId)) {
+      throw new AuthError(
+        "Can't delete: a settlement has already been marked paid. Mark it unpaid first.",
+        400,
+      );
+    }
+
     await db.delete(expenses).where(eq(expenses.id, expenseId));
+
+    // Existing settlements were computed against the old expense set.
+    await clearWorkspaceSettlements(existing[0].workspaceId);
+
     revalidatePath(`/workspaces/${existing[0].workspaceId}/expenses`);
+    revalidatePath(`/workspaces/${existing[0].workspaceId}/settlements`);
     return ok(null);
   } catch (err) {
     return fail(err);

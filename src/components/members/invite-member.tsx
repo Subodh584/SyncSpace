@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { copyToClipboard } from "@/lib/utils";
 import { inviteByUserId } from "@/actions/invitations";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,9 +83,10 @@ export function InviteMember({
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => {
-                navigator.clipboard.writeText(joinCode);
-                toast.success("Join code copied");
+              onClick={async () => {
+                const ok = await copyToClipboard(joinCode);
+                if (ok) toast.success("Join code copied");
+                else toast.error("Could not copy");
               }}
             >
               <Copy className="h-4 w-4" />

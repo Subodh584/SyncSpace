@@ -23,7 +23,8 @@ interface Notif {
   body: string | null;
   link: string | null;
   read: boolean;
-  createdAt: number;
+  // Serialized over the API as an ISO date string (Drizzle timestamp → JSON).
+  createdAt: string;
 }
 
 export function NotificationBell() {

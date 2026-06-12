@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { signIn } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -30,11 +31,12 @@ function LoginForm() {
       email: String(form.get("email")),
       password: String(form.get("password")),
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast.error(error.message || "Invalid email or password");
       return;
     }
+    // Keep the loader active while we redirect — the page unmounts on success.
     toast.success("Welcome back!");
     router.push(redirect);
     router.refresh();
@@ -65,6 +67,7 @@ function LoginForm() {
             <Input id="password" name="password" type="password" required />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? "Logging in…" : "Log in"}
           </Button>
         </form>

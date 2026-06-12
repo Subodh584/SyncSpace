@@ -25,7 +25,22 @@ export async function generateSettlements(
     await requireMember(workspaceId);
     const memberIds = await getMemberIds(workspaceId);
     const expenses = await getExpensesForSettlement(workspaceId);
-    const { transactions } = settleWorkspace(memberIds, expenses);
+    // Payments already marked paid must offset the recomputed debts, otherwise
+    // they reappear on every recalculation.
+    const completed = await db
+      .select({
+        from: settlements.fromUserId,
+        to: settlements.toUserId,
+        amount: settlements.amount,
+      })
+      .from(settlements)
+      .where(
+        and(
+          eq(settlements.workspaceId, workspaceId),
+          eq(settlements.status, "completed"),
+        ),
+      );
+    const { transactions } = settleWorkspace(memberIds, expenses, completed);
 
     await db
       .delete(settlements)
@@ -70,6 +85,14 @@ export async function markSettlementPaid(
     const s = existing[0];
     const { user: me } = await requireMember(s.workspaceId);
 
+    // Only the receiver of the money can confirm a payment was received.
+    if (me.id !== s.toUserId) {
+      throw new AuthError(
+        "Only the person receiving the money can mark this paid",
+        403,
+      );
+    }
+
     await db
       .update(settlements)
       .set({ status: "completed", settledAt: new Date(), updatedAt: new Date() })
@@ -95,6 +118,49 @@ export async function markSettlementPaid(
         });
       }
     }
+
+    revalidatePath(`/workspaces/${s.workspaceId}/settlements`);
+    return ok(null);
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Revert a completed settlement back to pending (e.g. marked paid by mistake). */
+export async function markSettlementUnpaid(
+  raw: unknown,
+): Promise<ActionResult> {
+  try {
+    const input = markSettledSchema.parse(raw);
+    const existing = await db
+      .select()
+      .from(settlements)
+      .where(eq(settlements.id, input.settlementId))
+      .limit(1);
+    if (!existing[0]) throw new AuthError("Settlement not found", 404);
+    const s = existing[0];
+    const { user: me } = await requireMember(s.workspaceId);
+
+    // Only the receiver — who confirmed receipt — can take it back.
+    if (me.id !== s.toUserId) {
+      throw new AuthError(
+        "Only the person receiving the money can change this",
+        403,
+      );
+    }
+
+    await db
+      .update(settlements)
+      .set({ status: "pending", settledAt: null, updatedAt: new Date() })
+      .where(eq(settlements.id, s.id));
+
+    await logActivity({
+      workspaceId: s.workspaceId,
+      actorId: me.id,
+      type: "settlement_completed",
+      message: `A settlement of ${formatCurrency(s.amount)} was marked unpaid`,
+      metadata: { settlementId: s.id },
+    });
 
     revalidatePath(`/workspaces/${s.workspaceId}/settlements`);
     return ok(null);

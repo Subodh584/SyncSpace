@@ -377,6 +377,126 @@ export const settlements = sqliteTable(
 );
 
 /* ────────────────────────────────────────────────────────────
+ * Food / meal planning
+ * ──────────────────────────────────────────────────────────── */
+
+export const meals = sqliteTable(
+  "meals",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    type: text("type", { enum: ["breakfast", "lunch", "dinner"] }).notNull(),
+    date: integer("date", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    status: text("status", { enum: ["open", "closed"] })
+      .notNull()
+      .default("open"),
+    notes: text("notes"),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt,
+    updatedAt,
+  },
+  (t) => ({
+    workspaceIdIdx: index("meals_workspace_id_idx").on(t.workspaceId),
+  }),
+);
+
+export const mealParticipants = sqliteTable(
+  "meal_participants",
+  {
+    id: text("id").primaryKey(),
+    mealId: text("meal_id")
+      .notNull()
+      .references(() => meals.id, { onDelete: "cascade" }),
+    // Null userId = guest (identified by guestName instead).
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    guestName: text("guest_name"),
+    choice: text("choice", { enum: ["roti", "rice", "both", "none"] })
+      .notNull()
+      .default("none"),
+    rotiCount: integer("roti_count").notNull().default(0),
+    createdAt,
+    updatedAt,
+  },
+  (t) => ({
+    mealIdIdx: index("meal_participants_meal_id_idx").on(t.mealId),
+    // One row per member per meal; guests have NULL userId (allowed multiple).
+    uniqMember: uniqueIndex("meal_participants_unique").on(t.mealId, t.userId),
+  }),
+);
+
+export const mealPolls = sqliteTable(
+  "meal_polls",
+  {
+    id: text("id").primaryKey(),
+    mealId: text("meal_id")
+      .notNull()
+      .references(() => meals.id, { onDelete: "cascade" }),
+    category: text("category", { enum: ["sabzi", "grain", "other"] })
+      .notNull()
+      .default("other"),
+    title: text("title").notNull(),
+    status: text("status", { enum: ["open", "closed"] })
+      .notNull()
+      .default("open"),
+    winningOptionId: text("winning_option_id"),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt,
+    updatedAt,
+  },
+  (t) => ({
+    mealIdIdx: index("meal_polls_meal_id_idx").on(t.mealId),
+  }),
+);
+
+export const mealPollOptions = sqliteTable(
+  "meal_poll_options",
+  {
+    id: text("id").primaryKey(),
+    pollId: text("poll_id")
+      .notNull()
+      .references(() => mealPolls.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt,
+  },
+  (t) => ({
+    pollIdIdx: index("meal_poll_options_poll_id_idx").on(t.pollId),
+  }),
+);
+
+export const mealPollVotes = sqliteTable(
+  "meal_poll_votes",
+  {
+    id: text("id").primaryKey(),
+    pollId: text("poll_id")
+      .notNull()
+      .references(() => mealPolls.id, { onDelete: "cascade" }),
+    optionId: text("option_id")
+      .notNull()
+      .references(() => mealPollOptions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt,
+  },
+  (t) => ({
+    // One vote per user per poll (changing a vote updates this row).
+    uniqVote: uniqueIndex("meal_poll_votes_unique").on(t.pollId, t.userId),
+    pollIdIdx: index("meal_poll_votes_poll_id_idx").on(t.pollId),
+  }),
+);
+
+/* ────────────────────────────────────────────────────────────
  * Notifications & activity logs
  * ──────────────────────────────────────────────────────────── */
 
@@ -400,6 +520,7 @@ export const notifications = sqliteTable(
         "settlement_completed",
         "rotation_changed",
         "member_joined",
+        "meal_planned",
       ],
     }).notNull(),
     title: text("title").notNull(),
@@ -433,6 +554,7 @@ export const activityLogs = sqliteTable(
         "expense_added",
         "settlement_completed",
         "rotation_changed",
+        "meal_planned",
       ],
     }).notNull(),
     message: text("message").notNull(),
@@ -519,6 +641,61 @@ export const expenseSplitRelations = relations(expenseSplits, ({ one }) => ({
   }),
 }));
 
+export const mealRelations = relations(meals, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [meals.workspaceId],
+    references: [workspaces.id],
+  }),
+  participants: many(mealParticipants),
+  polls: many(mealPolls),
+}));
+
+export const mealParticipantRelations = relations(
+  mealParticipants,
+  ({ one }) => ({
+    meal: one(meals, {
+      fields: [mealParticipants.mealId],
+      references: [meals.id],
+    }),
+    user: one(user, {
+      fields: [mealParticipants.userId],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const mealPollRelations = relations(mealPolls, ({ one, many }) => ({
+  meal: one(meals, { fields: [mealPolls.mealId], references: [meals.id] }),
+  options: many(mealPollOptions),
+  votes: many(mealPollVotes),
+}));
+
+export const mealPollOptionRelations = relations(
+  mealPollOptions,
+  ({ one, many }) => ({
+    poll: one(mealPolls, {
+      fields: [mealPollOptions.pollId],
+      references: [mealPolls.id],
+    }),
+    votes: many(mealPollVotes),
+  }),
+);
+
+export const mealPollVoteRelations = relations(mealPollVotes, ({ one }) => ({
+  poll: one(mealPolls, {
+    fields: [mealPollVotes.pollId],
+    references: [mealPolls.id],
+  }),
+  option: one(mealPollOptions, {
+    fields: [mealPollVotes.optionId],
+    references: [mealPollOptions.id],
+  }),
+  user: one(user, {
+    fields: [mealPollVotes.userId],
+    references: [user.id],
+  }),
+}));
+
 /* ────────────────────────────────────────────────────────────
  * Inferred types
  * ──────────────────────────────────────────────────────────── */
@@ -533,5 +710,10 @@ export type TaskRotation = typeof taskRotations.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type ExpenseSplit = typeof expenseSplits.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
+export type Meal = typeof meals.$inferSelect;
+export type MealParticipant = typeof mealParticipants.$inferSelect;
+export type MealPoll = typeof mealPolls.$inferSelect;
+export type MealPollOption = typeof mealPollOptions.$inferSelect;
+export type MealPollVote = typeof mealPollVotes.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type ActivityLog = typeof activityLogs.$inferSelect;

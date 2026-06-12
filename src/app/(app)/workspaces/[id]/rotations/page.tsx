@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { taskRotations } from "@/db/schema";
 import { requireMember } from "@/lib/auth-helpers";
 import { getWorkspaceMembers } from "@/lib/services/members";
+import { autoAdvanceDueRotations } from "@/lib/services/rotations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
@@ -17,7 +18,11 @@ export default async function RotationsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireMember(id);
+  const { membership } = await requireMember(id);
+  const isOwner = membership.role === "owner";
+
+  // Move any rotation whose scheduled day has passed to the next person.
+  await autoAdvanceDueRotations(id);
 
   const [rotations, members] = await Promise.all([
     db
@@ -99,7 +104,7 @@ export default async function RotationsPage({
                   </div>
                 )}
 
-                <RotationActions rotationId={r.id} />
+                <RotationActions rotationId={r.id} isOwner={isOwner} />
               </CardContent>
             </Card>
           ))}

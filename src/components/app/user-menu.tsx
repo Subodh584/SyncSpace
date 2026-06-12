@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Settings, User as UserIcon, Copy } from "lucide-react";
+import { LogOut, Settings, User as UserIcon, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { signOut } from "@/lib/auth-client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { initials } from "@/lib/utils";
+import { copyToClipboard, initials } from "@/lib/utils";
 
 export function UserMenu({
   name,
@@ -29,16 +30,19 @@ export function UserMenu({
   workspaceUserId: string;
 }) {
   const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
 
   async function handleSignOut() {
+    setSigningOut(true);
     await signOut();
     router.push("/login");
     router.refresh();
   }
 
-  function copyId() {
-    navigator.clipboard.writeText(workspaceUserId);
-    toast.success("Workspace ID copied");
+  async function copyId() {
+    const ok = await copyToClipboard(workspaceUserId);
+    if (ok) toast.success("Workspace ID copied");
+    else toast.error("Could not copy");
   }
 
   return (
@@ -75,8 +79,21 @@ export function UserMenu({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-          <LogOut className="h-4 w-4" /> Log out
+        <DropdownMenuItem
+          onSelect={(e) => {
+            // Keep the menu open so the loader stays visible until we redirect.
+            e.preventDefault();
+            if (!signingOut) handleSignOut();
+          }}
+          disabled={signingOut}
+          className="text-destructive"
+        >
+          {signingOut ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="h-4 w-4" />
+          )}
+          {signingOut ? "Logging out…" : "Log out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

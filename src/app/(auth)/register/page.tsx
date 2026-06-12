@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { signUp } from "@/lib/auth-client";
 import { registerSchema } from "@/lib/validations";
@@ -42,14 +43,14 @@ export default function RegisterPage() {
       // additional field defined in Better Auth config
       username: parsed.data.username,
     } as Parameters<typeof signUp.email>[0]);
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast.error(error.message || "Could not create account");
       return;
     }
-    toast.success("Account created!");
-    router.push("/workspaces");
-    router.refresh();
+    // Keep the loader active while we redirect — the page unmounts on success.
+    toast.success("Account created");
+    router.push("/login");
   }
 
   return (
@@ -90,6 +91,7 @@ export default function RegisterPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? "Creating account…" : "Create account"}
           </Button>
         </form>

@@ -6,8 +6,17 @@ import { toast } from "sonner";
 import { advanceRotation, deleteRotation } from "@/actions/rotations";
 import { Button } from "@/components/ui/button";
 
-export function RotationActions({ rotationId }: { rotationId: string }) {
+export function RotationActions({
+  rotationId,
+  isOwner,
+}: {
+  rotationId: string;
+  isOwner: boolean;
+}) {
   const router = useRouter();
+
+  // Advancing and deleting a rotation is owner-only.
+  if (!isOwner) return null;
 
   async function advance() {
     const res = await advanceRotation(rotationId);

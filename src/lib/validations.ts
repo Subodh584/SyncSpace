@@ -6,6 +6,9 @@ import {
   SPLIT_METHODS,
   ASSIGNMENT_STRATEGIES,
   ROTATION_FREQUENCIES,
+  MEAL_TYPES,
+  EATING_CHOICES,
+  POLL_CATEGORIES,
 } from "./constants";
 
 /* Auth */
@@ -127,6 +130,59 @@ export const updateExpenseSchema = createExpenseSchema
 /* Settlements */
 export const markSettledSchema = z.object({
   settlementId: z.string().min(1),
+});
+
+/* Food / meals */
+export const createMealSchema = z.object({
+  workspaceId: z.string().min(1),
+  type: z.enum(MEAL_TYPES),
+  date: z.coerce.date().optional(),
+  memberIds: z.array(z.string()).default([]),
+});
+
+export const setParticipantChoiceSchema = z.object({
+  participantId: z.string().min(1),
+  choice: z.enum(EATING_CHOICES),
+  rotiCount: z.coerce.number().int().min(0).max(99).default(0),
+});
+
+export const addGuestSchema = z.object({
+  mealId: z.string().min(1),
+  guestName: z.string().min(1, "Enter a guest name").max(60),
+  choice: z.enum(EATING_CHOICES),
+  rotiCount: z.coerce.number().int().min(0).max(99).default(0),
+});
+
+export const removeParticipantSchema = z.object({
+  participantId: z.string().min(1),
+});
+
+export const deleteMealSchema = z.object({
+  mealId: z.string().min(1),
+});
+
+export const createPollSchema = z.object({
+  mealId: z.string().min(1),
+  category: z.enum(POLL_CATEGORIES).default("other"),
+  title: z.string().min(2, "Title is too short").max(120),
+  options: z
+    .array(z.string().trim().min(1))
+    .min(2, "Add at least two options"),
+});
+
+export const addPollOptionSchema = z.object({
+  pollId: z.string().min(1),
+  label: z.string().trim().min(1, "Enter an option").max(80),
+});
+
+export const votePollSchema = z.object({
+  pollId: z.string().min(1),
+  optionId: z.string().min(1),
+});
+
+export const finalizePollSchema = z.object({
+  pollId: z.string().min(1),
+  optionId: z.string().min(1),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

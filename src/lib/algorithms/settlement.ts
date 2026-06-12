@@ -30,6 +30,12 @@ export interface Transaction {
   amount: number;
 }
 
+export interface Payment {
+  from: string; // who paid
+  to: string; // who received
+  amount: number;
+}
+
 export function computeBalances(
   memberIds: string[],
   expenses: ExpenseInput[],
@@ -95,11 +101,53 @@ export function minimizeTransactions(
   return txns;
 }
 
+/**
+ * Apply already-settled payments to net balances. A completed payment from
+ * `from` to `to` discharges debt: the payer's net rises (they owe less) and the
+ * receiver's net falls (they are owed less). Without this, a settlement that was
+ * marked paid would reappear every time settlements are recalculated, because
+ * balances are otherwise derived purely from expenses. Mutates and returns the
+ * given balances.
+ *
+ * Payments can only discharge debt that currently exists — they never push a
+ * balance past zero into a reverse debt. Each member's net is clamped between 0
+ * and their expense-only (raw) net. This matters when an expense is edited or
+ * deleted *after* a settlement was marked paid: the historical payment would
+ * otherwise over-discharge the (now smaller) debt and fabricate phantom
+ * "creditor owes debtor a refund" transactions. The excess is simply ignored.
+ */
+export function applyPayments(
+  balances: MemberBalance[],
+  payments: Payment[],
+): MemberBalance[] {
+  if (payments.length === 0) return balances;
+  // Capture the expense-only net so the clamp can use it as a bound.
+  const rawNet = new Map(balances.map((b) => [b.userId, b.net]));
+  const byId = new Map(balances.map((b) => [b.userId, b]));
+  for (const p of payments) {
+    const from = byId.get(p.from);
+    const to = byId.get(p.to);
+    if (from) from.net = round2(from.net + p.amount);
+    if (to) to.net = round2(to.net - p.amount);
+  }
+  for (const b of balances) {
+    const raw = rawNet.get(b.userId) ?? 0;
+    const lo = Math.min(0, raw);
+    const hi = Math.max(0, raw);
+    b.net = round2(Math.min(hi, Math.max(lo, b.net)));
+  }
+  return balances;
+}
+
 export function settleWorkspace(
   memberIds: string[],
   expenses: ExpenseInput[],
+  completedPayments: Payment[] = [],
 ): { balances: MemberBalance[]; transactions: Transaction[] } {
-  const balances = computeBalances(memberIds, expenses);
+  const balances = applyPayments(
+    computeBalances(memberIds, expenses),
+    completedPayments,
+  );
   const transactions = minimizeTransactions(balances);
   return { balances, transactions };
 }

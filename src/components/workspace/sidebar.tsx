@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -11,6 +11,8 @@ import {
   Users,
   FileBarChart,
   Settings,
+  Loader2,
+  UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,11 +20,30 @@ const NAV = [
   { href: "", label: "Dashboard", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/rotations", label: "Rotations", icon: RefreshCw },
+  { href: "/food", label: "Food", icon: UtensilsCrossed },
   { href: "/expenses", label: "Expenses", icon: Coins },
   { href: "/settlements", label: "Settlements", icon: Scale },
   { href: "/members", label: "Members", icon: Users },
   { href: "/reports", label: "Reports", icon: FileBarChart },
 ];
+
+/** Tracks navigation pending state so a loader shows while the next tab loads. */
+function useNavItems(workspaceId: string, isOwner: boolean) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const base = `/workspaces/${workspaceId}`;
+  const items = isOwner
+    ? [...NAV, { href: "/settings", label: "Settings", icon: Settings }]
+    : NAV;
+
+  function navigate(href: string) {
+    if (href === pathname) return;
+    startTransition(() => router.push(href));
+  }
+
+  return { pathname, base, items, isPending, navigate };
+}
 
 export function WorkspaceSidebar({
   workspaceId,
@@ -33,11 +54,10 @@ export function WorkspaceSidebar({
   workspaceName: string;
   isOwner: boolean;
 }) {
-  const pathname = usePathname();
-  const base = `/workspaces/${workspaceId}`;
-  const items = isOwner
-    ? [...NAV, { href: "/settings", label: "Settings", icon: Settings }]
-    : NAV;
+  const { pathname, base, items, isPending, navigate } = useNavItems(
+    workspaceId,
+    isOwner,
+  );
 
   return (
     <aside className="hidden w-60 shrink-0 border-r md:block">
@@ -56,19 +76,24 @@ export function WorkspaceSidebar({
                 ? pathname === base
                 : pathname.startsWith(href);
             return (
-              <Link
+              <button
                 key={item.href}
-                href={href}
+                type="button"
+                onClick={() => navigate(href)}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   active
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                {isPending && active ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <item.icon className="h-4 w-4" />
+                )}
                 {item.label}
-              </Link>
+              </button>
             );
           })}
         </nav>
@@ -85,11 +110,10 @@ export function WorkspaceMobileNav({
   workspaceId: string;
   isOwner: boolean;
 }) {
-  const pathname = usePathname();
-  const base = `/workspaces/${workspaceId}`;
-  const items = isOwner
-    ? [...NAV, { href: "/settings", label: "Settings", icon: Settings }]
-    : NAV;
+  const { pathname, base, items, isPending, navigate } = useNavItems(
+    workspaceId,
+    isOwner,
+  );
   return (
     <nav className="flex gap-1 overflow-x-auto border-b p-2 md:hidden">
       {items.map((item) => {
@@ -97,9 +121,10 @@ export function WorkspaceMobileNav({
         const active =
           item.href === "" ? pathname === base : pathname.startsWith(href);
         return (
-          <Link
+          <button
             key={item.href}
-            href={href}
+            type="button"
+            onClick={() => navigate(href)}
             className={cn(
               "flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm",
               active
@@ -107,9 +132,13 @@ export function WorkspaceMobileNav({
                 : "text-muted-foreground",
             )}
           >
-            <item.icon className="h-4 w-4" />
+            {isPending && active ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <item.icon className="h-4 w-4" />
+            )}
             {item.label}
-          </Link>
+          </button>
         );
       })}
     </nav>

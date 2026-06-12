@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { taskRotations } from "@/db/schema";
 import { genId } from "@/lib/ids";
 import { createRotationSchema } from "@/lib/validations";
-import { requireMember, AuthError } from "@/lib/auth-helpers";
+import { requireMember, requireOwner, AuthError } from "@/lib/auth-helpers";
 import { logActivity, notify } from "@/lib/services/activity";
 import {
   nextAssignee,
@@ -78,7 +78,7 @@ export async function advanceRotation(
       .limit(1);
     if (!existing[0]) throw new AuthError("Rotation not found", 404);
     const r = existing[0];
-    const { user: me } = await requireMember(r.workspaceId);
+    const { user: me } = await requireOwner(r.workspaceId);
 
     const order = r.memberOrder ?? [];
     const newCurrent = nextAssignee(order, r.currentAssigneeId);
@@ -136,7 +136,7 @@ export async function deleteRotation(
       .where(eq(taskRotations.id, rotationId))
       .limit(1);
     if (!existing[0]) throw new AuthError("Rotation not found", 404);
-    await requireMember(existing[0].workspaceId);
+    await requireOwner(existing[0].workspaceId);
     await db.delete(taskRotations).where(eq(taskRotations.id, rotationId));
     revalidatePath(`/workspaces/${existing[0].workspaceId}/rotations`);
     return ok(null);

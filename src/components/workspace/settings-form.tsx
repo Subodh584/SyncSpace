@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { copyToClipboard } from "@/lib/utils";
 import {
   updateWorkspace,
   deleteWorkspace,
@@ -127,9 +128,10 @@ export function WorkspaceSettingsForm({
             <Button
               variant="outline"
               size="icon"
-              onClick={() => {
-                navigator.clipboard.writeText(code);
-                toast.success("Copied");
+              onClick={async () => {
+                const ok = await copyToClipboard(code);
+                if (ok) toast.success("Copied");
+                else toast.error("Could not copy");
               }}
             >
               <Copy className="h-4 w-4" />

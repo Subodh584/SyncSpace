@@ -63,6 +63,9 @@ export function ExpenseDialog({
 
   const previewSum = round2(preview.reduce((s, p) => s + p.amount, 0));
   const balanced = Math.abs(previewSum - total) <= 0.01;
+  // For the fixed-amount method, how much of the total is still unallocated.
+  // Positive = left to assign, negative = over the total.
+  const remaining = round2(total - previewSum);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -229,6 +232,21 @@ export function ExpenseDialog({
                 );
               })}
             </div>
+            {splitMethod === "fixed" && (
+              <div
+                className={
+                  "flex items-center justify-between rounded-md border px-3 py-2 text-sm font-medium " +
+                  (remaining === 0
+                    ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                    : remaining < 0
+                      ? "border-destructive/40 text-destructive"
+                      : "border-amber-500/40 text-amber-600 dark:text-amber-400")
+                }
+              >
+                <span>{remaining < 0 ? "Over by" : "Remaining"}</span>
+                <span>{formatCurrency(Math.abs(remaining))}</span>
+              </div>
+            )}
             <p
               className={
                 balanced

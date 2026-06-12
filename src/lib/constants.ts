@@ -32,6 +32,31 @@ export const ASSIGNMENT_STRATEGIES = [
 
 export const ROTATION_FREQUENCIES = ["daily", "weekly", "monthly"] as const;
 
+export const MEAL_TYPES = ["breakfast", "lunch", "dinner"] as const;
+
+export const MEAL_TYPE_LABELS: Record<string, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
+};
+
+export const EATING_CHOICES = ["roti", "rice", "both", "none"] as const;
+
+export const EATING_CHOICE_LABELS: Record<string, string> = {
+  roti: "Roti",
+  rice: "Rice",
+  both: "Roti + Rice",
+  none: "Not eating",
+};
+
+export const POLL_CATEGORIES = ["sabzi", "grain", "other"] as const;
+
+export const POLL_CATEGORY_LABELS: Record<string, string> = {
+  sabzi: "Sabzi",
+  grain: "Grain",
+  other: "Other",
+};
+
 export const CATEGORY_LABELS: Record<string, string> = {
   food: "Food",
   travel: "Travel",

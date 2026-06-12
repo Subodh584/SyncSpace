@@ -1,13 +1,11 @@
-import Link from "next/link";
 import { eq, sql } from "drizzle-orm";
-import { Layers, Users, Crown } from "lucide-react";
+import { Layers } from "lucide-react";
 import { db } from "@/db";
 import { workspaceMembers, workspaces } from "@/db/schema";
 import { getCurrentUser } from "@/lib/current-user";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { CreateWorkspaceDialog } from "@/components/workspace/create-workspace-dialog";
+import { WorkspaceCard } from "@/components/workspace/workspace-card";
 
 export default async function WorkspacesPage() {
   const user = await getCurrentUser();
@@ -54,29 +52,7 @@ export default async function WorkspacesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {myWorkspaces.map((w) => (
-            <Link key={w.id} href={`/workspaces/${w.id}`}>
-              <Card className="h-full transition-shadow hover:shadow-md">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="line-clamp-1">{w.name}</CardTitle>
-                    {w.role === "owner" && (
-                      <Badge variant="secondary" className="gap-1">
-                        <Crown className="h-3 w-3" /> Owner
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="line-clamp-2 min-h-[2.5rem] text-sm text-muted-foreground">
-                    {w.description || "No description"}
-                  </p>
-                  <div className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    {w.memberCount} member{w.memberCount === 1 ? "" : "s"}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <WorkspaceCard key={w.id} workspace={w} />
           ))}
         </div>
       )}

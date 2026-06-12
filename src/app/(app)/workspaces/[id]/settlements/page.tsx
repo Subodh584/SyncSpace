@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/empty-state";
 import {
   GenerateSettlements,
   MarkPaid,
+  MarkUnpaid,
 } from "@/components/settlements/settlement-controls";
 import { formatCurrency, initials, cn } from "@/lib/utils";
 
@@ -22,7 +23,7 @@ export default async function SettlementsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireMember(id);
+  const { user: me } = await requireMember(id);
 
   const [members, memberIds, expenses, persisted] = await Promise.all([
     getWorkspaceMembers(id),
@@ -34,12 +35,22 @@ export default async function SettlementsPage({
       .where(eq(settlementsTable.workspaceId, id)),
   ]);
 
-  const { balances } = settleWorkspace(memberIds, expenses);
-  const memberById = new Map(members.map((m) => [m.userId, m]));
-  const nameOf = (uid: string) => memberById.get(uid)?.name ?? "Unknown";
-
   const pending = persisted.filter((s) => s.status === "pending");
   const completed = persisted.filter((s) => s.status === "completed");
+
+  // Offset balances by payments already marked paid so the displayed net
+  // matches what recalculation produces.
+  const { balances } = settleWorkspace(
+    memberIds,
+    expenses,
+    completed.map((s) => ({
+      from: s.fromUserId,
+      to: s.toUserId,
+      amount: s.amount,
+    })),
+  );
+  const memberById = new Map(members.map((m) => [m.userId, m]));
+  const nameOf = (uid: string) => memberById.get(uid)?.name ?? "Unknown";
 
   return (
     <div className="container py-8">
@@ -126,7 +137,10 @@ export default async function SettlementsPage({
                     <span className="ml-auto font-semibold">
                       {formatCurrency(s.amount)}
                     </span>
-                    <MarkPaid settlementId={s.id} />
+                    <MarkPaid
+                      settlementId={s.id}
+                      isReceiver={me.id === s.toUserId}
+                    />
                   </div>
                 ))}
                 {completed.map((s) => (
@@ -141,6 +155,10 @@ export default async function SettlementsPage({
                       {formatCurrency(s.amount)}
                     </span>
                     <Badge variant="success">Paid</Badge>
+                    <MarkUnpaid
+                      settlementId={s.id}
+                      isReceiver={me.id === s.toUserId}
+                    />
                   </div>
                 ))}
               </>

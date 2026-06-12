@@ -33,10 +33,44 @@ function resolveBaseURL(): string {
   return "http://localhost:3000";
 }
 
+/**
+ * Origins the server will accept auth requests from. The client (see
+ * `auth-client.ts`) deliberately uses `window.location.origin`, so the page may
+ * be served from `localhost`, `127.0.0.1`, a LAN IP, or a non-3000 port — all
+ * of which must be trusted or better-auth rejects them with "invalid origin".
+ */
+function resolveTrustedOrigins(): string[] {
+  const origins = new Set<string>([resolveBaseURL()]);
+
+  for (const env of [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.BETTER_AUTH_URL,
+  ]) {
+    if (env) origins.add(env);
+  }
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
+
+  // In development, trust local/LAN origins on any port so the app works when
+  // opened via 127.0.0.1, a phone on the same network, etc. Wildcards are
+  // supported by better-auth's trustedOrigins matcher.
+  if (process.env.NODE_ENV !== "production") {
+    origins.add("http://localhost:*");
+    origins.add("http://127.0.0.1:*");
+    origins.add("http://192.168.*.*:*");
+    origins.add("http://10.*.*.*:*");
+  }
+
+  return [...origins];
+}
+
 export const auth = betterAuth({
   appName: "SyncSpace",
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: resolveBaseURL(),
+  trustedOrigins: resolveTrustedOrigins(),
   database: drizzleAdapter(db, {
     provider: "sqlite",
     schema: {
@@ -50,7 +84,9 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false,
     minPasswordLength: 8,
-    autoSignIn: true,
+    // Don't auto-create a session on signup — the user is sent to the login
+    // page to sign in explicitly (see register/page.tsx).
+    autoSignIn: false,
     // No transactional email provider is wired up by default. In development
     // the reset link is logged to the server console; swap this for Resend,
     // Postmark, etc. in production.

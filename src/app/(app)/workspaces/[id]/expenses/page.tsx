@@ -3,6 +3,7 @@ import { requireMember } from "@/lib/auth-helpers";
 import { getCurrentUser } from "@/lib/current-user";
 import { getWorkspaceMembers } from "@/lib/services/members";
 import { listExpenses } from "@/lib/services/expenses";
+import { hasCompletedSettlements } from "@/lib/services/settlements";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,10 +20,11 @@ export default async function ExpensesPage({
 }) {
   const { id } = await params;
   await requireMember(id);
-  const [user, members, expenses] = await Promise.all([
+  const [user, members, expenses, locked] = await Promise.all([
     getCurrentUser(),
     getWorkspaceMembers(id),
     listExpenses(id),
+    hasCompletedSettlements(id),
   ]);
   const nameOf = (uid: string) =>
     members.find((m) => m.userId === uid)?.name ?? "Unknown";
@@ -77,7 +79,7 @@ export default async function ExpensesPage({
                 <span className="w-24 text-right font-semibold">
                   {formatCurrency(e.amount)}
                 </span>
-                <DeleteExpense expenseId={e.id} />
+                <DeleteExpense expenseId={e.id} disabled={locked} />
               </div>
             ))}
           </CardContent>
